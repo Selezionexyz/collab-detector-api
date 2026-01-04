@@ -17,11 +17,7 @@ app.use(express.json());
 // HOME
 // ============================================
 app.get('/', (req, res) => {
-  res.json({ 
-    name: 'LuxeStyleFinder API', 
-    version: '2.0.0',
-    status: 'running'
-  });
+  res.json({ name: 'LuxeStyleFinder API', version: '3.0.0', status: 'running' });
 });
 
 // ============================================
@@ -30,29 +26,22 @@ app.get('/', (req, res) => {
 app.get('/api/collabs', (req, res) => {
   res.json({ success: true, data: db.getAllCollabs() });
 });
-
 app.get('/api/collabs/latest', (req, res) => {
-  res.json({ success: true, data: db.getLatestCollabs(10) });
+  res.json({ success: true, data: db.getLatestCollabs(parseInt(req.query.limit) || 10) });
 });
-
 app.get('/api/collabs/hot', (req, res) => {
   res.json({ success: true, data: db.getHotCollabs() });
 });
-
 app.get('/api/collabs/search', (req, res) => {
-  const q = req.query.q;
-  if (!q) return res.status(400).json({ error: 'q requis' });
-  res.json({ success: true, data: db.searchCollabs(q) });
+  if (!req.query.q) return res.status(400).json({ error: 'q requis' });
+  res.json({ success: true, data: db.searchCollabs(req.query.q) });
 });
-
 app.get('/api/stats', (req, res) => {
   res.json({ success: true, data: db.getCollabStats() });
 });
-
 app.get('/api/brands', (req, res) => {
   res.json({ success: true, data: detector.BRANDS });
 });
-
 app.post('/api/scan', async (req, res) => {
   const results = await runFullScan();
   res.json({ success: true, newCollabs: results.length });
@@ -68,7 +57,6 @@ app.post('/api/users/register', (req, res) => {
   if (!user) return res.status(400).json({ error: 'Email deja utilise' });
   res.json({ success: true, data: user });
 });
-
 app.post('/api/users/login', (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email et password requis' });
@@ -83,17 +71,12 @@ app.post('/api/users/login', (req, res) => {
 app.get('/api/wishlist/:userId', (req, res) => {
   res.json({ success: true, data: db.getWishlist(req.params.userId) });
 });
-
 app.post('/api/wishlist/:userId', (req, res) => {
-  const item = req.body;
-  if (!item.id || !item.name) return res.status(400).json({ error: 'id et name requis' });
-  const added = db.addToWishlist(req.params.userId, item);
-  res.json({ success: added });
+  if (!req.body.id || !req.body.name) return res.status(400).json({ error: 'id et name requis' });
+  res.json({ success: db.addToWishlist(req.params.userId, req.body) });
 });
-
 app.delete('/api/wishlist/:userId/:itemId', (req, res) => {
-  const removed = db.removeFromWishlist(req.params.userId, req.params.itemId);
-  res.json({ success: removed });
+  res.json({ success: db.removeFromWishlist(req.params.userId, req.params.itemId) });
 });
 
 // ============================================
@@ -102,26 +85,18 @@ app.delete('/api/wishlist/:userId/:itemId', (req, res) => {
 app.get('/api/releases', (req, res) => {
   res.json({ success: true, data: db.getAllReleases() });
 });
-
 app.get('/api/releases/upcoming', (req, res) => {
-  const days = parseInt(req.query.days) || 7;
-  res.json({ success: true, data: db.getUpcomingReleases(days) });
+  res.json({ success: true, data: db.getUpcomingReleases(parseInt(req.query.days) || 7) });
 });
-
 app.get('/api/releases/today', (req, res) => {
   res.json({ success: true, data: db.getTodayReleases() });
 });
-
 app.post('/api/releases', (req, res) => {
-  const release = req.body;
-  if (!release.name || !release.date) return res.status(400).json({ error: 'name et date requis' });
-  const id = db.addRelease(release);
-  res.json({ success: true, id: id });
+  if (!req.body.name || !req.body.date) return res.status(400).json({ error: 'name et date requis' });
+  res.json({ success: true, id: db.addRelease(req.body) });
 });
-
 app.delete('/api/releases/:id', (req, res) => {
-  const deleted = db.deleteRelease(req.params.id);
-  res.json({ success: deleted });
+  res.json({ success: db.deleteRelease(req.params.id) });
 });
 
 // ============================================
@@ -130,15 +105,12 @@ app.delete('/api/releases/:id', (req, res) => {
 app.get('/api/prices/:productId', (req, res) => {
   res.json({ success: true, data: db.getPriceHistory(req.params.productId) });
 });
-
-app.get('/api/prices/:productId/lowest', (req, res) => {
-  res.json({ success: true, data: db.getLowestPrice(req.params.productId) });
+app.get('/api/prices/:productId/stats', (req, res) => {
+  res.json({ success: true, data: db.getPriceStats(req.params.productId) });
 });
-
 app.post('/api/prices/:productId', (req, res) => {
-  const { price, source } = req.body;
-  if (!price) return res.status(400).json({ error: 'price requis' });
-  db.addPricePoint(req.params.productId, price, source);
+  if (!req.body.price) return res.status(400).json({ error: 'price requis' });
+  db.addPricePoint(req.params.productId, req.body.price, req.body.source);
   res.json({ success: true });
 });
 
@@ -148,21 +120,105 @@ app.post('/api/prices/:productId', (req, res) => {
 app.get('/api/alerts/:userId', (req, res) => {
   res.json({ success: true, data: db.getUserAlerts(req.params.userId) });
 });
-
 app.post('/api/alerts/:userId', (req, res) => {
-  const alert = req.body;
-  if (!alert.type) return res.status(400).json({ error: 'type requis' });
-  const id = db.createAlert(req.params.userId, alert);
-  res.json({ success: true, id: id });
+  if (!req.body.type) return res.status(400).json({ error: 'type requis' });
+  res.json({ success: true, id: db.createAlert(req.params.userId, req.body) });
 });
-
 app.delete('/api/alerts/:alertId', (req, res) => {
-  const deleted = db.deleteAlert(req.params.alertId);
-  res.json({ success: deleted });
+  res.json({ success: db.deleteAlert(req.params.alertId) });
 });
 
 // ============================================
-// SCAN FUNCTION
+// PORTFOLIO
+// ============================================
+app.get('/api/portfolio/:userId', (req, res) => {
+  res.json({ success: true, data: db.getPortfolio(req.params.userId) });
+});
+app.get('/api/portfolio/:userId/stats', (req, res) => {
+  res.json({ success: true, data: db.getPortfolioStats(req.params.userId) });
+});
+app.post('/api/portfolio/:userId', (req, res) => {
+  if (!req.body.name) return res.status(400).json({ error: 'name requis' });
+  res.json({ success: true, id: db.addToPortfolio(req.params.userId, req.body) });
+});
+app.put('/api/portfolio/:userId/:itemId', (req, res) => {
+  res.json({ success: db.updatePortfolioItem(req.params.userId, req.params.itemId, req.body) });
+});
+app.delete('/api/portfolio/:userId/:itemId', (req, res) => {
+  res.json({ success: db.removeFromPortfolio(req.params.userId, req.params.itemId) });
+});
+
+// ============================================
+// SEARCH HISTORY
+// ============================================
+app.get('/api/history/search/:userId', (req, res) => {
+  res.json({ success: true, data: db.getSearchHistory(req.params.userId) });
+});
+app.post('/api/history/search/:userId', (req, res) => {
+  db.addSearchHistory(req.params.userId, req.body.query, req.body.results || 0);
+  res.json({ success: true });
+});
+app.delete('/api/history/search/:userId', (req, res) => {
+  res.json({ success: db.clearSearchHistory(req.params.userId) });
+});
+
+// ============================================
+// SCAN HISTORY
+// ============================================
+app.get('/api/history/scan/:userId', (req, res) => {
+  res.json({ success: true, data: db.getScanHistory(req.params.userId) });
+});
+app.post('/api/history/scan/:userId', (req, res) => {
+  db.addScanHistory(req.params.userId, req.body);
+  res.json({ success: true });
+});
+
+// ============================================
+// TRENDING
+// ============================================
+app.get('/api/trending', (req, res) => {
+  res.json({ success: true, data: db.getTrending(parseInt(req.query.limit) || 10) });
+});
+
+// ============================================
+// NOTES
+// ============================================
+app.get('/api/notes/:userId', (req, res) => {
+  res.json({ success: true, data: db.getAllNotes(req.params.userId) });
+});
+app.get('/api/notes/:userId/:productId', (req, res) => {
+  res.json({ success: true, data: db.getNote(req.params.userId, req.params.productId) });
+});
+app.post('/api/notes/:userId/:productId', (req, res) => {
+  if (!req.body.note) return res.status(400).json({ error: 'note requis' });
+  res.json({ success: db.addNote(req.params.userId, req.params.productId, req.body.note) });
+});
+
+// ============================================
+// RECOMMENDATIONS
+// ============================================
+app.get('/api/recommendations/:userId', (req, res) => {
+  res.json({ success: true, data: db.getRecommendations(req.params.userId) });
+});
+
+// ============================================
+// EXPORT
+// ============================================
+app.get('/api/export/:userId', (req, res) => {
+  const data = {
+    user: db.getUser(req.params.userId),
+    portfolio: db.getPortfolio(req.params.userId),
+    portfolioStats: db.getPortfolioStats(req.params.userId),
+    wishlist: db.getWishlist(req.params.userId),
+    alerts: db.getUserAlerts(req.params.userId),
+    searchHistory: db.getSearchHistory(req.params.userId),
+    exportedAt: new Date().toISOString()
+  };
+  res.json({ success: true, data });
+});
+
+// ============================================
+// SCAN
 // ============================================
 async function runFullScan() {
   console.log('Scan en cours...');
@@ -180,6 +236,6 @@ async function runFullScan() {
 cron.schedule('*/5 * * * *', () => runFullScan());
 
 app.listen(PORT, () => {
-  console.log('LuxeStyleFinder API running on port ' + PORT);
+  console.log('LuxeStyleFinder API V3 running on port ' + PORT);
   setTimeout(runFullScan, 2000);
 });
