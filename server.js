@@ -13,16 +13,35 @@ const PORT = process.env.PORT || 3000;
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
+// ============================================
+// 🏠 HOME
+// ============================================
 app.get('/', (req, res) => {
-  res.json({ name: '🤖 Collab Detector API', status: 'running' });
+  res.json({ 
+    name: '🤖 LuxeStyleFinder API', 
+    version: '2.0.0',
+    status: 'running',
+    endpoints: {
+      collabs: '/api/collabs',
+      users: '/api/users',
+      wishlist: '/api/wishlist',
+      releases: '/api/releases',
+      prices: '/api/prices',
+      alerts: '/api/alerts'
+    }
+  });
 });
 
+// ============================================
+// 🔥 COLLABS ENDPOINTS
+// ============================================
 app.get('/api/collabs', (req, res) => {
   res.json({ success: true, count: db.getAllCollabs().length, data: db.getAllCollabs() });
 });
 
 app.get('/api/collabs/latest', (req, res) => {
-  res.json({ success: true, data: db.getLatestCollabs(10) });
+  const limit = parseInt(req.query.limit) || 10;
+  res.json({ success: true, data: db.getLatestCollabs(limit) });
 });
 
 app.get('/api/collabs/hot', (req, res) => {
@@ -36,7 +55,7 @@ app.get('/api/collabs/search', (req, res) => {
 });
 
 app.get('/api/stats', (req, res) => {
-  res.json({ success: true, data: db.getStats() });
+  res.json({ success: true, data: db.getCollabStats() });
 });
 
 app.get('/api/brands', (req, res) => {
@@ -48,22 +67,25 @@ app.post('/api/scan', async (req, res) => {
   res.json({ success: true, newCollabs: results.length, data: results });
 });
 
-async function runFullScan() {
-  console.log('🤖 Scan en cours...');
-  const articles = await scraper.scrapeAll();
-  const collabs = detector.detectCollabs(articles);
-  const newCollabs = [];
-  for (const collab of collabs) {
-    if (db.saveCollab(collab)) newCollabs.push(collab);
+// ============================================
+// 👤 USERS ENDPOINTS
+// ============================================
+app.post('/api/users/register', (req, res) => {
+  const { email, password, name } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ success: false, error: 'Email et password requis' });
   }
-  db.updateLastScan();
-  console.log('✅ ' + newCollabs.length + ' nouvelles collabs');
-  return newCollabs;
-}
-
-cron.schedule('*/5 * * * *', () => runFullScan());
-
-app.listen(PORT, () => {
-  console.log('🤖 Collab Detector API running on port ' + PORT);
-  setTimeout(runFullScan, 2000);
+  const user = db.createUser(email, password, name);
+  if (!user) {
+    return res.status(400).json({ success: false, error: 'Email déjà utilisé' });
+  }
+  res.json({ success: true, data: user });
 });
+
+app.post('/api/users/login', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ success: false, error: 'Email et password requis' });
+  }
+  const user = db.loginUser(email, password);
+  if
